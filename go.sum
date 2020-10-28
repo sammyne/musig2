@@ -1,0 +1,6 @@
+github.com/gtank/ristretto255 v0.1.2 h1:JEqUCPA1NvLq5DwYtuzigd7ss8fwbYay9fi4/5uMzcc=
+github.com/gtank/ristretto255 v0.1.2/go.mod h1:Ph5OpO6c7xKUGROZfWVLiJf9icMDwUeIvY4OmlYW69o=
+github.com/sammyne/merlin v0.0.0-20201016125501-4e70b643403c h1:9y8B3MK2QTDf4J+L6ivYRX/zlNg6JA217Co4MaJ1s7E=
+github.com/sammyne/merlin v0.0.0-20201016125501-4e70b643403c/go.mod h1:wpTXeKtJJp45qwuTr2P1jErFLoDEJfavkg+ZCEHPFPI=
+github.com/sammyne/strobe v0.0.0-20201016115358-20cae8fe29e1 h1:HQRaKFWj7M6aPW6kawRil2gRO+eovJGxTStz4r3hdSg=
+github.com/sammyne/strobe v0.0.0-20201016115358-20cae8fe29e1/go.mod h1:qh9eFhXWV5wasPw/+WZ3ELz1+lWdlje8oHhOgiX5aGU=
