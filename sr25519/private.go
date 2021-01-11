@@ -30,7 +30,7 @@ func GenerateKey(rand io.Reader) (*PrivateKey, error) {
 	copy(nonce[:], r[64:])
 
 	A := ristretto255.NewElement().ScalarBaseMult(s)
-	pub := PublicKey{a: A, encoded: A.Encode(nil)}
+	pub := PublicKey{a: A, encodedA: A.Encode(nil)}
 
 	priv := &PrivateKey{PublicKey: pub, s: s, nonce: nonce}
 

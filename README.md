@@ -1,8 +1,8 @@
 # MuSig
 
 ## WIP
-- sr25519 for digital signatures
-- sig aggregation
+- [x] sr25519 for digital signatures
+- [ ] sig aggregation
 
 ## References
 - [gtank/ristretto255]
