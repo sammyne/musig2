@@ -1,0 +1,29 @@
+# other reference: https://github.com/mvdan/github-actions-golang
+name: build
+
+on:
+  push:
+    branches: [ 'main', 'dev' ]
+  pull_request:
+    branches: [ 'main' ]
+
+jobs:
+  test:
+
+    strategy:
+      matrix:
+        go:
+        - '1.15.1'
+    runs-on: ubuntu-18.04
+    container:
+      image: golang:${{ matrix.go }}
+
+    env:
+      CODECOV_TOKEN: 5c2977bd-2d45-42a3-80bd-c5231a13b982 # for codecov
+    steps:
+    - uses: actions/checkout@v2
+    - name: Run tests
+      run: |  # -race wouldn't be supported without gcc
+        go test -v -race $(go list ./... | grep -v /vendor/) -coverprofile=coverage.txt &&
+        bash <(curl -s https://codecov.io/bash)
+      shell: bash
