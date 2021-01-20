@@ -41,6 +41,6 @@ func VerifyMuSig(PK []*sr25519.PublicKey, msg, sig []byte) error {
 	panic("todo")
 }
 
-func NewMuSig(ctx *merlin.Transcript, msg []byte) *MuSig {
+func NewMuSig(ctx *merlin.Transcript, priv *sr25519.PrivateKey, msg []byte) *MuSig {
 	panic("todo")
 }

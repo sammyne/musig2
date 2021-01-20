@@ -10,8 +10,8 @@ import (
 type PrivateKey struct {
 	PublicKey
 
-	s     *ristretto255.Scalar
-	nonce [32]byte // Seed for deriving the nonces used in signing.
+	S     *ristretto255.Scalar
+	Nonce [32]byte // Seed for deriving the nonces used in signing.
 }
 
 func (priv *PrivateKey) Public() PublicKey {
@@ -32,7 +32,7 @@ func GenerateKey(rand io.Reader) (*PrivateKey, error) {
 	A := ristretto255.NewElement().ScalarBaseMult(s)
 	pub := PublicKey{a: A, encodedA: A.Encode(nil)}
 
-	priv := &PrivateKey{PublicKey: pub, s: s, nonce: nonce}
+	priv := &PrivateKey{PublicKey: pub, S: s, Nonce: nonce}
 
 	return priv, nil
 }

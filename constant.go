@@ -13,3 +13,5 @@ const (
 const (
 	SigningCtxLabel = "SigningContext"
 )
+
+const Rewinds = 4

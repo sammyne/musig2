@@ -6,6 +6,7 @@ import (
 
 	"github.com/gtank/ristretto255"
 	"github.com/sammyne/merlin"
+	"github.com/sammyne/musig/bytes"
 )
 
 const SigLen = 64
@@ -56,7 +57,7 @@ func MerlinSign(rand io.Reader, priv *PrivateKey, transcript *merlin.Transcript)
 	A, _ := priv.PublicKey.MarshalBinary()
 	transcript.AppendMessage(signPubKeyLabel, A)
 
-	witness := merlin.Witness{Label: signingWitnessLabel, Body: priv.nonce[:]}
+	witness := merlin.Witness{Label: signingWitnessLabel, Body: bytes.Copy(priv.Nonce[:])}
 	rng, err := merlin.NewRand(transcript, rand, witness)
 	if err != nil {
 		return nil, fmt.Errorf("fail to new RNG: %w", err)
@@ -76,7 +77,7 @@ func MerlinSign(rand io.Reader, priv *PrivateKey, transcript *merlin.Transcript)
 		return nil, fmt.Errorf("fail to compute c: %w", err)
 	}
 
-	s := c.Multiply(c, priv.s) // cx
+	s := c.Multiply(c, priv.S) // cx
 	s.Add(s, r)                // cx+r
 
 	out := &Sig{R: R, S: s}
