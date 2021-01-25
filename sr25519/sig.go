@@ -6,7 +6,8 @@ import (
 
 	"github.com/gtank/ristretto255"
 	"github.com/sammyne/merlin"
-	"github.com/sammyne/musig/bytes"
+
+	"github.com/sammyne/musig2/bytes"
 )
 
 const SigLen = 64

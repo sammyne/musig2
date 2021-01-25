@@ -16,10 +16,14 @@ func (pub *PublicKey) MarshalBinary() ([]byte, error) {
 	return pub.encodedA, nil
 }
 
+func (pub *PublicKey) MustMarshalBinary() []byte {
+	return pub.encodedA
+}
+
 func (pub *PublicKey) UnmarshalBinary(data []byte) error {
 	a := new(ristretto255.Element)
 	if err := a.Decode(data); err != nil {
-		return fmt.Errorf("decode data: %w", err)
+		return fmt.Errorf("decode data: %w(%v)", ErrUnmarshalPublicKey, err)
 	}
 
 	pub.a, pub.encodedA = a, a.Encode(nil)

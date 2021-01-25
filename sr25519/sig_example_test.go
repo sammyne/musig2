@@ -5,7 +5,8 @@ import (
 	"fmt"
 
 	"github.com/sammyne/merlin"
-	"github.com/sammyne/musig/sr25519"
+
+	"github.com/sammyne/musig2/sr25519"
 )
 
 func ExampleSign() {

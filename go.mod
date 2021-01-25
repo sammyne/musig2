@@ -1,4 +1,4 @@
-module github.com/sammyne/musig
+module github.com/sammyne/musig2
 
 go 1.15
 
