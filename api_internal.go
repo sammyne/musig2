@@ -1,10 +1,7 @@
 package musig
 
 import (
-	"encoding/hex"
-
 	"github.com/gtank/ristretto255"
-
 	"github.com/sammyne/merlin"
 	"github.com/sammyne/musig2/sr25519"
 )
@@ -21,9 +18,16 @@ var (
 	labelSignR    = []byte("sign:R")
 )
 
+/*
 type rewindFunc = func(PK *sr25519.PublicKey) [Rewinds]*ristretto255.Scalar
+*/
 
-func (s *MuSig) calcMyWeight() (*ristretto255.Scalar, error) {
+func (s *MuSig2) aggregatePublicKeys(me *sr25519.PublicKey) (
+	*sr25519.PublicKey, *ristretto255.Scalar) {
+	panic("todo")
+}
+
+func (s *MuSig2) calcMyWeight() (*ristretto255.Scalar, error) {
 	// commit public key
 	t := merlin.NewTranscript(labelCommitPK)
 	for _, v := range s.orderedPubKeys {
@@ -35,6 +39,7 @@ func (s *MuSig) calcMyWeight() (*ristretto255.Scalar, error) {
 	return newChallengingScalar(t, nil)
 }
 
+/*
 func (s *MuSig) rewinder() rewindFunc {
 	ctx := s.ctx.Clone()
 	for _, v := range s.orderedPubKeys {
@@ -70,3 +75,4 @@ func (s *MuSig) rewinder() rewindFunc {
 //
 //	return new(ristretto255.Element).VarTimeMultiScalarMult(x[:], Rs[:])
 //}
+*/

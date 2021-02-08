@@ -10,15 +10,15 @@ func _() {
 	var x [1]struct{}
 	_ = x[StateUnknown-0]
 	_ = x[StateNew-1]
-	_ = x[StateCommit-2]
-	_ = x[StateReveal-3]
-	_ = x[StateCosign-4]
-	_ = x[StateSign-5]
+	_ = x[StateNonceCollecting-2]
+	_ = x[StateCosigning-3]
+	_ = x[StateCosigned-4]
+	_ = x[StateSigned-5]
 }
 
-const _State_name = "UnknownNewCommitRevealCosignSign"
+const _State_name = "UnknownNewNonceCollectingCosigningCosignedSigned"
 
-var _State_index = [...]uint8{0, 7, 10, 16, 22, 28, 32}
+var _State_index = [...]uint8{0, 7, 10, 25, 34, 42, 48}
 
 func (i State) String() string {
 	if i >= State(len(_State_index)-1) {

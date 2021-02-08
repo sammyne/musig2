@@ -3,6 +3,7 @@ package musig
 import "errors"
 
 var (
+	ErrBadNonces            = errors.New("bad nonces")
 	ErrDecodeReveal         = errors.New("invalid reveal")
 	ErrDoubleCache          = errors.New("entry is duplicate cache")
 	ErrGenerateChallenge    = errors.New("generate challenge")

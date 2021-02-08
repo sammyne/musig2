@@ -1,4 +1,4 @@
-# MuSig
+# MuSig2
 
 ## WIP
 - [x] sr25519 for digital signatures

@@ -7,7 +7,7 @@ import (
 )
 
 type PublicKey struct {
-	a *ristretto255.Element
+	A *ristretto255.Element
 
 	encodedA []byte // 32 bytes canonical encoding of a, see https://ristretto.group/formulas/encoding.html
 }
@@ -21,11 +21,11 @@ func (pub *PublicKey) MustMarshalBinary() []byte {
 }
 
 func (pub *PublicKey) UnmarshalBinary(data []byte) error {
-	a := new(ristretto255.Element)
-	if err := a.Decode(data); err != nil {
+	A := new(ristretto255.Element)
+	if err := A.Decode(data); err != nil {
 		return fmt.Errorf("decode data: %w(%v)", ErrUnmarshalPublicKey, err)
 	}
 
-	pub.a, pub.encodedA = a, a.Encode(nil)
+	pub.A, pub.encodedA = A, A.Encode(nil)
 	return nil
 }

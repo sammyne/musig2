@@ -98,7 +98,7 @@ func MerlinVerify(pub *PublicKey, transcript *merlin.Transcript, sig *Sig) bool 
 		return false
 	}
 
-	negA := ristretto255.NewElement().Negate(pub.a)
+	negA := ristretto255.NewElement().Negate(pub.A)
 	R := ristretto255.NewElement().VarTimeDoubleScalarBaseMult(c, negA, sig.S)
 
 	return R.Equal(sig.R) == 1

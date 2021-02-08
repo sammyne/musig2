@@ -2,6 +2,7 @@ package musig
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"sort"
@@ -11,6 +12,29 @@ import (
 
 	"github.com/sammyne/musig2/sr25519"
 )
+
+type nonceWeightCalcFunc = func(i int) *ristretto255.Scalar
+
+func marshalElements(vals []*ristretto255.Element) []byte {
+	out := make([]byte, len(vals)*32)
+	for i, v := range vals {
+		v.Encode(out[i*32:])
+	}
+
+	return out
+}
+
+func mustNewScalarOne() *ristretto255.Scalar {
+	var oneLE [32]byte
+	oneLE[0] = 1
+
+	out := ristretto255.NewScalar()
+	if err := out.Decode(oneLE[:]); err != nil {
+		panic("unexpected decode scalar one")
+	}
+
+	return out
+}
 
 func newChallengingScalar(t *merlin.Transcript, label []byte) (*ristretto255.Scalar, error) {
 	var buf [64]byte
@@ -22,21 +46,27 @@ func newChallengingScalar(t *merlin.Transcript, label []byte) (*ristretto255.Sca
 	return out, nil
 }
 
-func newCommitment(nonce [Rewinds]*ristretto255.Element) (Commitment, error) {
-	transcript := merlin.NewTranscript(commitmentTranscriptLabel)
+func newNoncesWeightCalculator(ctx *merlin.Transcript,
+	Rj [NoncesLen]*ristretto255.Element) nonceWeightCalcFunc {
+	nonceCtx := ctx.Clone()
 
-	var b [32]byte
-	for _, v := range nonce {
-		v.Encode(b[:])
-		transcript.AppendMessage(commitmentSignLabel, b[:])
+	var buf [32]byte
+	for _, v := range Rj {
+		nonceCtx.AppendMessage(labelNonceRj, v.Encode(buf[:0]))
 	}
 
-	var out Commitment
-	if err := transcript.ChallengeBytes(commitmentLabel, out[:]); err != nil {
-		return Commitment{}, fmt.Errorf("generate challenge bytes: %w(%v)", ErrGenerateChallenge, err)
+	out := func(i int) *ristretto255.Scalar {
+		var idx [2]byte
+		binary.LittleEndian.PutUint16(idx[:], uint16(i))
+		s, err := newChallengingScalar(nonceCtx.Clone(), idx[:])
+		if err != nil {
+			panic(fmt.Sprintf("generate b(%d): %v", i, err))
+		}
+
+		return s
 	}
 
-	return out, nil
+	return out
 }
 
 func randScalar(t *merlin.Transcript, r io.Reader, nonces ...[]byte) (*ristretto255.Scalar, error) {

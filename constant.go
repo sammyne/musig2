@@ -7,10 +7,10 @@ type State uint8
 const (
 	StateUnknown State = iota
 	StateNew
-	StateCommit // generate and collect commitments
-	StateReveal // reveal and collect commitments
-	StateCosign // generate partial sig
-	StateSign   // aggregate partial sig into final sig
+	StateNonceCollecting // collecting nonces
+	StateCosigning       // generate and collect partial sig
+	StateCosigned        // all partial sig have been collected
+	StateSigned          // aggregate sig
 )
 
 const (
@@ -18,6 +18,6 @@ const (
 )
 
 const (
-	CosigLen = 64
-	Rewinds  = 4
+	CosigLen  = 64
+	NoncesLen = 2
 )
