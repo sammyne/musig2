@@ -1,7 +1,6 @@
 package musig2
 
 import (
-	"crypto/rand"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
@@ -14,17 +13,17 @@ import (
 )
 
 var (
-	labelProtoName = []byte("proto-name")
-	protoName      = []byte("Schnorr-sig")
-
 	labelAi          = []byte("aggregate-PK:weight")
 	labelL           = []byte("aggregate-PK:public-key-set")
 	labelMsg         = []byte("musig2-msg")
+	labelProtoName   = []byte("proto-name")
 	labelRandWitness = []byte("musig2-witness")
 	labelRj          = []byte("nonce:Rj")
+	labelSignC       = []byte("sign:c")
 	labelSignR       = []byte("sign:R")
 	labelX           = []byte("aggregated-public_key")
 	labelXi          = []byte("aggregate-PK:public-key")
+	protoName        = []byte("MuSig2")
 )
 
 type Sig struct {
@@ -127,7 +126,7 @@ func (s *MuSig2) OurCosig() ([]byte, error) {
 	var buf [32]byte
 	s.ctx.AppendMessage(labelSignR, s.sumR.Encode(buf[:0]))
 
-	c, err := randScalar(s.ctx, rand.Reader)
+	c, err := newChallengingScalar(s.ctx, labelSignC)
 	if err != nil {
 		return nil, fmt.Errorf("calc c: %w(%v)", ErrRand, err)
 	}
@@ -180,9 +179,6 @@ func (s *MuSig2) Sign() ([]byte, error) {
 		sumS.Add(sumS, v)
 	}
 
-	//fmt.Println("R", s.sumR)
-	//fmt.Println("s", sumS)
-
 	return marshalSig(s.sumR, sumS), nil
 }
 
@@ -203,7 +199,7 @@ func MerlinVerify(Xs []*sr25519.PublicKey, msg *merlin.Transcript, sig []byte) e
 	var buf [32]byte
 	msg.AppendMessage(labelSignR, R.Encode(buf[:0]))
 
-	c, err := randScalar(msg, rand.Reader)
+	c, err := newChallengingScalar(msg, labelSignC)
 	if err != nil {
 		return fmt.Errorf("calc c: %w", err)
 	}
@@ -212,7 +208,7 @@ func MerlinVerify(Xs []*sr25519.PublicKey, msg *merlin.Transcript, sig []byte) e
 	RXc.Add(RXc, R)
 
 	sG := ristretto255.NewElement().ScalarBaseMult(s)
-	if sG.Equal(RXc) == 1 {
+	if sG.Equal(RXc) != 1 {
 		return ErrBadSig
 	}
 
