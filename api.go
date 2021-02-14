@@ -1,4 +1,4 @@
-package musig
+package musig2
 
 import (
 	"crypto/rand"
@@ -66,7 +66,7 @@ func (s *MuSig2) AddOtherNonces(PK, nonces []byte) error {
 	var otherR [NoncesLen]*ristretto255.Element
 	for i := range otherR {
 		otherR[i] = ristretto255.NewElement()
-		if err := otherR[i].Decode(nonces[i : 32 : (i+1)*32]); err != nil {
+		if err := otherR[i].Decode(nonces[i*32 : (i+1)*32]); err != nil {
 			return fmt.Errorf("%d-th nonce is invalid: %w", i, ErrBadNonces)
 		}
 	}
@@ -99,44 +99,56 @@ func (s *MuSig2) AddOtherCosig(PK, cosig []byte) error {
 }
 
 func (s *MuSig2) OurCosig() ([]byte, error) {
-	switch s.state {
-	case StateNonceCollecting:
+	if s.state != StateNonceCollecting {
 		err := fmt.Errorf("%w(expect %q, got %q)", ErrInvalidState, StateNonceCollecting, s.state)
 		return nil, err
-	default:
 	}
 	s.state = StateCosigning
 
-	sortPublicKeys(s.orderedPubKeys)
-
 	s.ctx.AppendMessage(labelProtoName, protoName)
 
-	X, a1 := s.aggregatePublicKeys(&s.privKey.PublicKey)
+	X, a1, err := aggregatePublicKeys(s.ctx, s.orderedPubKeys, &s.privKey.PublicKey)
+	if err != nil {
+		return nil, fmt.Errorf("aggregate public key: %w", err)
+	}
 	s.ctx.AppendMessage(labelNoncePK, X.MustMarshalBinary())
 
-	// aggregate public keys
+	//fmt.Println("------")
+	//for k, v := range s.Rs {
+	//	fmt.Println(" PK", k)
+	//	fmt.Println("  R0", v[0])
+	//	fmt.Println("  R1", v[1])
+	//}
+	//fmt.Println("------")
 
 	// calc R_j
 	var Rj [NoncesLen]*ristretto255.Element
+	//fmt.Println("------")
 	for j := range Rj {
 		Rj[j] = ristretto255.NewElement()
 		for _, v := range s.Rs {
 			Rj[j].Add(Rj[j], v[j])
 		}
+		//fmt.Printf("R[%d] = %s\n", j, Rj[j])
 	}
+	//fmt.Println("------")
 
 	// calc b_j
 	calcNoncesWeight := newNoncesWeightCalculator(s.ctx, Rj)
 	var b [NoncesLen]*ristretto255.Scalar
 	b[0] = mustNewScalarOne()
+	//fmt.Println("------")
+	//fmt.Printf("b[0] = %s\n", b[0])
 	for j := 1; j < NoncesLen; j++ {
 		b[j] = calcNoncesWeight(j)
+		//fmt.Printf("b[%d] = %s\n", j, b[j])
 	}
+	//fmt.Println("------")
 
 	s.sumR = ristretto255.NewElement().VarTimeMultiScalarMult(b[:], Rj[:])
 
 	var buf [32]byte
-	s.ctx.AppendMessage(labelSignR, s.sumR.Encode(buf[:]))
+	s.ctx.AppendMessage(labelSignR, s.sumR.Encode(buf[:0]))
 
 	c, err := randScalar(s.ctx, rand.Reader)
 	if err != nil {
@@ -154,7 +166,7 @@ func (s *MuSig2) OurCosig() ([]byte, error) {
 
 	s.cosigs[s.pkHex] = s1
 
-	return s1.Encode(buf[:]), nil
+	return s1.Encode(buf[:0]), nil
 }
 
 func (s *MuSig2) OurNonces() ([]byte, error) {
@@ -163,7 +175,14 @@ func (s *MuSig2) OurNonces() ([]byte, error) {
 	}
 	s.state = StateNonceCollecting
 
+	s.orderedPubKeys = append(s.orderedPubKeys, &s.privKey.PublicKey)
+
 	R := s.Rs[s.pkHex]
+
+	//fmt.Println("------")
+	//fmt.Println(" R0 =", R[0])
+	//fmt.Println(" R1 =", R[1])
+	//fmt.Println("------")
 
 	return marshalElements(R[:]), nil
 }
@@ -192,15 +211,43 @@ func (s *MuSig2) Sign() ([]byte, error) {
 		sumS.Add(sumS, v)
 	}
 
-	var out [64]byte
-	s.sumR.Encode(out[:])
-	sumS.Encode(out[32:])
+	//fmt.Println("R", s.sumR)
+	//fmt.Println("s", sumS)
 
-	return out[:], nil
+	return marshalSig(s.sumR, sumS), nil
 }
 
-func Verify(PK []*sr25519.PublicKey, msg *merlin.Transcript, sig []byte) error {
-	panic("todo")
+func MerlinVerify(Xs []*sr25519.PublicKey, msg *merlin.Transcript, sig []byte) error {
+	R, s, err := unmarshalSig(sig)
+	if err != nil {
+		return fmt.Errorf("invalid sig: %w", err)
+	}
+
+	msg.AppendMessage(labelProtoName, protoName)
+
+	X, _, err := aggregatePublicKeys(msg, Xs, Xs[0])
+	if err != nil {
+		return fmt.Errorf("aggregate public key: %w", err)
+	}
+	msg.AppendMessage(labelNoncePK, X.MustMarshalBinary())
+
+	var buf [32]byte
+	msg.AppendMessage(labelSignR, R.Encode(buf[:0]))
+
+	c, err := randScalar(msg, rand.Reader)
+	if err != nil {
+		return fmt.Errorf("calc c: %w", err)
+	}
+
+	RXc := ristretto255.NewElement().ScalarMult(c, X.A)
+	RXc.Add(RXc, R)
+
+	sG := ristretto255.NewElement().ScalarBaseMult(s)
+	if sG.Equal(RXc) == 1 {
+		return ErrBadSig
+	}
+
+	return nil
 }
 
 func NewMuSig2(rand io.Reader, priv *sr25519.PrivateKey, msg *merlin.Transcript) (*MuSig2, error) {
@@ -212,6 +259,7 @@ func NewMuSig2(rand io.Reader, priv *sr25519.PrivateKey, msg *merlin.Transcript)
 		)
 
 		binary.LittleEndian.PutUint64(idx[:], uint64(i))
+		// @dev msg won't be altered
 		if r[i], err = randScalar(msg, rand, priv.Nonce[:], idx[:]); err != nil {
 			return nil, fmt.Errorf("fail to generate scalar randomly: %w", err)
 		}

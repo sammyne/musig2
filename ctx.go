@@ -1,4 +1,4 @@
-package musig
+package musig2
 
 import "github.com/sammyne/merlin"
 

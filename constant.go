@@ -1,4 +1,4 @@
-package musig
+package musig2
 
 //go:generate stringer -type State -trimprefix State
 

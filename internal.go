@@ -1,4 +1,4 @@
-package musig
+package musig2
 
 import (
 	"bytes"
@@ -15,13 +15,58 @@ import (
 
 type nonceWeightCalcFunc = func(i int) *ristretto255.Scalar
 
+// aggregatePublicKeys return the aggregated public key and the weighted components
+func aggregatePublicKeys(ctx *merlin.Transcript, Xs []*sr25519.PublicKey, me *sr25519.PublicKey) (
+	*sr25519.PublicKey, *ristretto255.Scalar, error) {
+
+	sortPublicKeys(Xs)
+
+	pkCtx := ctx.Clone()
+	// append L to ctx
+	for _, v := range Xs {
+		pkCtx.AppendMessage(labelPKSet, v.MustMarshalBinary())
+	}
+
+	var a1 *ristretto255.Scalar
+	X := ristretto255.NewElement()
+	for i, v := range Xs {
+		cc := pkCtx.Clone()
+		cc.AppendMessage(labelPKChoice, v.MustMarshalBinary())
+		// @TODO: whether define label for this
+		ai, err := newChallengingScalar(cc, nil)
+		if err != nil {
+			return nil, nil, fmt.Errorf("generate a_%d: %w", i, err)
+		}
+		X.Add(X, ristretto255.NewElement().ScalarMult(ai, v.A))
+
+		if bytes.Equal(me.MustMarshalBinary(), v.MustMarshalBinary()) {
+			a1 = ai
+		}
+	}
+
+	outX := new(sr25519.PublicKey)
+	if err := outX.UnmarshalBinary(X.Encode(nil)); err != nil {
+		return nil, nil, fmt.Errorf("unmarshal public key: %w", err)
+	}
+
+	return outX, a1, nil
+}
+
 func marshalElements(vals []*ristretto255.Element) []byte {
-	out := make([]byte, len(vals)*32)
-	for i, v := range vals {
-		v.Encode(out[i*32:])
+	out := make([]byte, 0, len(vals)*32)
+	for _, v := range vals {
+		out = v.Encode(out)
 	}
 
 	return out
+}
+
+func marshalSig(R *ristretto255.Element, s *ristretto255.Scalar) []byte {
+	var out [64]byte
+	R.Encode(out[0:0:32])
+	s.Encode(out[32:32:64])
+
+	return out[:]
 }
 
 func mustNewScalarOne() *ristretto255.Scalar {
@@ -105,4 +150,22 @@ func unmarshalPublicKey(b []byte) (*sr25519.PublicKey, error) {
 	}
 
 	return out, nil
+}
+
+func unmarshalSig(sig []byte) (*ristretto255.Element, *ristretto255.Scalar, error) {
+	if len(sig) != 64 {
+		return nil, nil, fmt.Errorf("expect length 64, got %d: %w", len(sig), ErrBadSig)
+	}
+
+	R := ristretto255.NewElement()
+	if err := R.Decode(sig[:32]); err != nil {
+		return nil, nil, fmt.Errorf("invalid R: %w", err)
+	}
+
+	s := ristretto255.NewScalar()
+	if err := s.Decode(sig[32:]); err != nil {
+		return nil, nil, fmt.Errorf("invalid s: %w", err)
+	}
+
+	return R, s, nil
 }

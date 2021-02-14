@@ -19,7 +19,7 @@ jobs:
       image: golang:${{ matrix.go }}
 
     env:
-      CODECOV_TOKEN: 3de4cd5d-3dd8-4819-b50d-628f2698c937 # for codecov
+      CODECOV_TOKEN: 5886ea76-b7f5-43c3-a530-28e6dad6b425 # for codecov
     steps:
     - uses: actions/checkout@v2
     - name: Run tests
