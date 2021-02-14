@@ -5,6 +5,7 @@ import (
 	mathrand "math/rand"
 
 	"github.com/sammyne/merlin"
+
 	"github.com/sammyne/musig2"
 	"github.com/sammyne/musig2/sr25519"
 )

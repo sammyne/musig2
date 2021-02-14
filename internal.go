@@ -117,7 +117,7 @@ func newNoncesWeightCalculator(ctx *merlin.Transcript,
 func randScalar(t *merlin.Transcript, r io.Reader, nonces ...[]byte) (*ristretto255.Scalar, error) {
 	witnesses := make([]merlin.Witness, len(nonces))
 	for i, v := range nonces {
-		witnesses[i] = merlin.Witness{Label: randWitnessLabel, Body: v}
+		witnesses[i] = merlin.Witness{Label: labelRandWitness, Body: v}
 	}
 
 	rand, err := merlin.NewRand(t, r, witnesses...)

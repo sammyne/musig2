@@ -14,14 +14,15 @@ import (
 )
 
 var (
-	labelCommitPK  = []byte("MuSig2-aggregate-public_key")
 	labelProtoName = []byte("proto-name")
-	labelNonceB    = []byte("nonce:b")
 	labelNonceRj   = []byte("nonce:Rj")
 	labelNoncePK   = []byte("nonce:aggregate-public_key")
-	labelSignC     = []byte("sign:c")
-	labelSignPK    = []byte("sign:pk")
 	protoName      = []byte("Schnorr-sig")
+
+	labelPKChoice    = []byte("pk-choice")
+	labelPKSet       = []byte("pk-set")
+	labelRandWitness = []byte("musig2-witness")
+	labelSignR       = []byte("sign:R")
 )
 
 type Sig struct {
@@ -104,8 +105,6 @@ func (s *MuSig2) OurCosig() ([]byte, error) {
 		return nil, err
 	}
 	s.state = StateCosigning
-
-	s.ctx.AppendMessage(labelProtoName, protoName)
 
 	X, a1, err := aggregatePublicKeys(s.ctx, s.orderedPubKeys, &s.privKey.PublicKey)
 	if err != nil {
@@ -253,10 +252,8 @@ func MerlinVerify(Xs []*sr25519.PublicKey, msg *merlin.Transcript, sig []byte) e
 func NewMuSig2(rand io.Reader, priv *sr25519.PrivateKey, msg *merlin.Transcript) (*MuSig2, error) {
 	var r [NoncesLen]*ristretto255.Scalar
 	for i := range r {
-		var (
-			err error
-			idx [8]byte
-		)
+		var err error
+		var idx [8]byte
 
 		binary.LittleEndian.PutUint64(idx[:], uint64(i))
 		// @dev msg won't be altered
@@ -271,6 +268,8 @@ func NewMuSig2(rand io.Reader, priv *sr25519.PrivateKey, msg *merlin.Transcript)
 	}
 
 	pkHex := hex.EncodeToString(priv.PublicKey.MustMarshalBinary())
+
+	msg.AppendMessage(labelProtoName, protoName)
 
 	out := &MuSig2{
 		Rs: map[string][NoncesLen]*ristretto255.Element{pkHex: R},
