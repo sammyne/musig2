@@ -4,15 +4,14 @@ import (
 	"bytes"
 	mathrand "math/rand"
 
-	"github.com/sammyne/merlin"
-
 	"github.com/sammyne/musig2"
 	"github.com/sammyne/musig2/sr25519"
 )
 
 func ExampleMerlinVerify() {
-	msg := merlin.NewTranscript([]byte("musig2"))
-	msg.AppendMessage([]byte("hello"), []byte("world"))
+	//msg := merlin.NewTranscript([]byte("musig2"))
+	//msg.AppendMessage([]byte("hello"), []byte("world"))
+	msg := []byte("hello-world")
 
 	mRand := mathrand.New(mathrand.NewSource(123))
 
@@ -28,11 +27,11 @@ func ExampleMerlinVerify() {
 	//fmt.Printf("A = %x\n", privA.PublicKey.MustMarshalBinary())
 	//fmt.Printf("B = %x\n", privB.PublicKey.MustMarshalBinary())
 
-	msA, err := musig2.NewMuSig2(mRand, privA, msg.Clone())
+	msA, err := musig2.NewMuSig2(mRand, privA, msg)
 	if err != nil {
 		panic(err)
 	}
-	msB, err := musig2.NewMuSig2(mRand, privB, msg.Clone())
+	msB, err := musig2.NewMuSig2(mRand, privB, msg)
 	if err != nil {
 		panic(err)
 	}
@@ -90,7 +89,7 @@ func ExampleMerlinVerify() {
 	}
 
 	Xs := []*sr25519.PublicKey{&privA.PublicKey, &privB.PublicKey}
-	if err := musig2.MerlinVerify(Xs, msg.Clone(), sigA); err != nil {
+	if err := musig2.Verify(Xs, msg, sigA); err != nil {
 		panic("verify failed")
 	}
 

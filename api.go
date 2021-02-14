@@ -19,6 +19,7 @@ var (
 	labelNoncePK   = []byte("nonce:aggregate-public_key")
 	protoName      = []byte("Schnorr-sig")
 
+	labelMsg         = []byte("musig2-msg")
 	labelPKChoice    = []byte("pk-choice")
 	labelPKSet       = []byte("pk-set")
 	labelRandWitness = []byte("musig2-witness")
@@ -249,7 +250,9 @@ func MerlinVerify(Xs []*sr25519.PublicKey, msg *merlin.Transcript, sig []byte) e
 	return nil
 }
 
-func NewMuSig2(rand io.Reader, priv *sr25519.PrivateKey, msg *merlin.Transcript) (*MuSig2, error) {
+func NewMerlinMuSig2(rand io.Reader, priv *sr25519.PrivateKey, msg *merlin.Transcript) (
+	*MuSig2, error) {
+
 	var r [NoncesLen]*ristretto255.Scalar
 	for i := range r {
 		var err error
@@ -283,4 +286,19 @@ func NewMuSig2(rand io.Reader, priv *sr25519.PrivateKey, msg *merlin.Transcript)
 	}
 
 	return out, nil
+}
+
+func NewMuSig2(rand io.Reader, priv *sr25519.PrivateKey, msg []byte) (*MuSig2, error) {
+	return NewMerlinMuSig2(rand, priv, TranscriptFromMsg(msg))
+}
+
+func TranscriptFromMsg(msg []byte) *merlin.Transcript {
+	transcript := merlin.NewTranscript(nil)
+	transcript.AppendMessage(labelMsg, msg)
+
+	return transcript
+}
+
+func Verify(Xs []*sr25519.PublicKey, msg []byte, sig []byte) error {
+	return MerlinVerify(Xs, TranscriptFromMsg(msg), sig)
 }
