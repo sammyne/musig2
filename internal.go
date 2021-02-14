@@ -15,25 +15,23 @@ import (
 
 type nonceWeightCalcFunc = func(i int) *ristretto255.Scalar
 
-// aggregatePublicKeys return the aggregated public key and the weighted components
+// aggregatePublicKeys return the aggregated public key and the weight for me.
 func aggregatePublicKeys(ctx *merlin.Transcript, Xs []*sr25519.PublicKey, me *sr25519.PublicKey) (
 	*sr25519.PublicKey, *ristretto255.Scalar, error) {
 
 	sortPublicKeys(Xs)
 
 	pkCtx := ctx.Clone()
-	// append L to ctx
-	for _, v := range Xs {
-		pkCtx.AppendMessage(labelPKSet, v.MustMarshalBinary())
+	for _, v := range Xs { // append L to ctx
+		pkCtx.AppendMessage(labelL, v.MustMarshalBinary())
 	}
 
 	var a1 *ristretto255.Scalar
 	X := ristretto255.NewElement()
 	for i, v := range Xs {
 		cc := pkCtx.Clone()
-		cc.AppendMessage(labelPKChoice, v.MustMarshalBinary())
-		// @TODO: whether define label for this
-		ai, err := newChallengingScalar(cc, nil)
+		cc.AppendMessage(labelXi, v.MustMarshalBinary())
+		ai, err := newChallengingScalar(cc, labelAi)
 		if err != nil {
 			return nil, nil, fmt.Errorf("generate a_%d: %w", i, err)
 		}
@@ -50,23 +48,6 @@ func aggregatePublicKeys(ctx *merlin.Transcript, Xs []*sr25519.PublicKey, me *sr
 	}
 
 	return outX, a1, nil
-}
-
-func marshalElements(vals []*ristretto255.Element) []byte {
-	out := make([]byte, 0, len(vals)*32)
-	for _, v := range vals {
-		out = v.Encode(out)
-	}
-
-	return out
-}
-
-func marshalSig(R *ristretto255.Element, s *ristretto255.Scalar) []byte {
-	var out [64]byte
-	R.Encode(out[0:0:32])
-	s.Encode(out[32:32:64])
-
-	return out[:]
 }
 
 func mustNewScalarOne() *ristretto255.Scalar {
@@ -97,7 +78,7 @@ func newNoncesWeightCalculator(ctx *merlin.Transcript,
 
 	var buf [32]byte
 	for _, v := range Rj {
-		nonceCtx.AppendMessage(labelNonceRj, v.Encode(buf[:0]))
+		nonceCtx.AppendMessage(labelRj, v.Encode(buf[:0]))
 	}
 
 	out := func(i int) *ristretto255.Scalar {
@@ -141,31 +122,4 @@ func sortPublicKeys(PKs []*sr25519.PublicKey) {
 		y2, _ := PKs[j].MarshalBinary()
 		return bytes.Compare(y1, y2) == -1
 	})
-}
-
-func unmarshalPublicKey(b []byte) (*sr25519.PublicKey, error) {
-	out := new(sr25519.PublicKey)
-	if err := out.UnmarshalBinary(b); err != nil {
-		return nil, err
-	}
-
-	return out, nil
-}
-
-func unmarshalSig(sig []byte) (*ristretto255.Element, *ristretto255.Scalar, error) {
-	if len(sig) != 64 {
-		return nil, nil, fmt.Errorf("expect length 64, got %d: %w", len(sig), ErrBadSig)
-	}
-
-	R := ristretto255.NewElement()
-	if err := R.Decode(sig[:32]); err != nil {
-		return nil, nil, fmt.Errorf("invalid R: %w", err)
-	}
-
-	s := ristretto255.NewScalar()
-	if err := s.Decode(sig[32:]); err != nil {
-		return nil, nil, fmt.Errorf("invalid s: %w", err)
-	}
-
-	return R, s, nil
 }

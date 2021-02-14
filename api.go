@@ -15,15 +15,16 @@ import (
 
 var (
 	labelProtoName = []byte("proto-name")
-	labelNonceRj   = []byte("nonce:Rj")
-	labelNoncePK   = []byte("nonce:aggregate-public_key")
 	protoName      = []byte("Schnorr-sig")
 
+	labelAi          = []byte("aggregate-PK:weight")
+	labelL           = []byte("aggregate-PK:public-key-set")
 	labelMsg         = []byte("musig2-msg")
-	labelPKChoice    = []byte("pk-choice")
-	labelPKSet       = []byte("pk-set")
 	labelRandWitness = []byte("musig2-witness")
+	labelRj          = []byte("nonce:Rj")
 	labelSignR       = []byte("sign:R")
+	labelX           = []byte("aggregated-public_key")
+	labelXi          = []byte("aggregate-PK:public-key")
 )
 
 type Sig struct {
@@ -34,10 +35,9 @@ type Sig struct {
 type MuSig2 struct {
 	Rs map[string][NoncesLen]*ristretto255.Element // hex(public key) => nonces list
 
-	cosigs map[string]*ristretto255.Scalar // @TODO: maybe optimise as array
-	ctx    *merlin.Transcript
-	// orderedPubKeys will be in order before co-signing
-	orderedPubKeys []*sr25519.PublicKey
+	cosigs         map[string]*ristretto255.Scalar // @TODO: maybe optimise as array
+	ctx            *merlin.Transcript
+	orderedPubKeys []*sr25519.PublicKey // orderedPubKeys will be in order before co-signing
 	privKey        *sr25519.PrivateKey
 	pkHex          string // in hex
 	r1             [NoncesLen]*ristretto255.Scalar
@@ -55,25 +55,17 @@ func (s *MuSig2) AddOtherNonces(PK, nonces []byte) error {
 		return ErrDoubleCache
 	}
 
-	Y, err := unmarshalPublicKey(PK)
-	if err != nil {
+	otherPK := new(sr25519.PublicKey)
+	if err := otherPK.UnmarshalBinary(PK); err != nil {
 		return fmt.Errorf("invalid public key: %w", err)
 	}
 
-	if len(nonces) != 32*NoncesLen {
-		return fmt.Errorf("invalid nonces length(%d), expect %d: %w",
-			len(nonces), 32*NoncesLen, ErrBadNonces)
+	otherR, err := unmarshalNonces(nonces)
+	if err != nil {
+		return fmt.Errorf("unmarshal nonces: %w", err)
 	}
 
-	var otherR [NoncesLen]*ristretto255.Element
-	for i := range otherR {
-		otherR[i] = ristretto255.NewElement()
-		if err := otherR[i].Decode(nonces[i*32 : (i+1)*32]); err != nil {
-			return fmt.Errorf("%d-th nonce is invalid: %w", i, ErrBadNonces)
-		}
-	}
-
-	s.Rs[pkHex], s.orderedPubKeys = otherR, append(s.orderedPubKeys, Y)
+	s.Rs[pkHex], s.orderedPubKeys = otherR, append(s.orderedPubKeys, otherPK)
 
 	return nil
 }
@@ -111,39 +103,24 @@ func (s *MuSig2) OurCosig() ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("aggregate public key: %w", err)
 	}
-	s.ctx.AppendMessage(labelNoncePK, X.MustMarshalBinary())
-
-	//fmt.Println("------")
-	//for k, v := range s.Rs {
-	//	fmt.Println(" PK", k)
-	//	fmt.Println("  R0", v[0])
-	//	fmt.Println("  R1", v[1])
-	//}
-	//fmt.Println("------")
+	s.ctx.AppendMessage(labelX, X.MustMarshalBinary())
 
 	// calc R_j
 	var Rj [NoncesLen]*ristretto255.Element
-	//fmt.Println("------")
 	for j := range Rj {
 		Rj[j] = ristretto255.NewElement()
 		for _, v := range s.Rs {
 			Rj[j].Add(Rj[j], v[j])
 		}
-		//fmt.Printf("R[%d] = %s\n", j, Rj[j])
 	}
-	//fmt.Println("------")
 
 	// calc b_j
 	calcNoncesWeight := newNoncesWeightCalculator(s.ctx, Rj)
 	var b [NoncesLen]*ristretto255.Scalar
 	b[0] = mustNewScalarOne()
-	//fmt.Println("------")
-	//fmt.Printf("b[0] = %s\n", b[0])
 	for j := 1; j < NoncesLen; j++ {
 		b[j] = calcNoncesWeight(j)
-		//fmt.Printf("b[%d] = %s\n", j, b[j])
 	}
-	//fmt.Println("------")
 
 	s.sumR = ristretto255.NewElement().VarTimeMultiScalarMult(b[:], Rj[:])
 
@@ -169,22 +146,14 @@ func (s *MuSig2) OurCosig() ([]byte, error) {
 	return s1.Encode(buf[:0]), nil
 }
 
+// OurNonces returns our nonces. This function can be CALLED ONCE ONLY.
 func (s *MuSig2) OurNonces() ([]byte, error) {
 	if s.state != StateNew {
 		return nil, fmt.Errorf("%w(expect %q, got %q)", ErrInvalidState, StateNew, s.state)
 	}
 	s.state = StateNonceCollecting
 
-	s.orderedPubKeys = append(s.orderedPubKeys, &s.privKey.PublicKey)
-
-	R := s.Rs[s.pkHex]
-
-	//fmt.Println("------")
-	//fmt.Println(" R0 =", R[0])
-	//fmt.Println(" R1 =", R[1])
-	//fmt.Println("------")
-
-	return marshalElements(R[:]), nil
+	return marshalNonces(s.Rs[s.pkHex]), nil
 }
 
 // PartyLen returns the total peer involved.
@@ -229,7 +198,7 @@ func MerlinVerify(Xs []*sr25519.PublicKey, msg *merlin.Transcript, sig []byte) e
 	if err != nil {
 		return fmt.Errorf("aggregate public key: %w", err)
 	}
-	msg.AppendMessage(labelNoncePK, X.MustMarshalBinary())
+	msg.AppendMessage(labelX, X.MustMarshalBinary())
 
 	var buf [32]byte
 	msg.AppendMessage(labelSignR, R.Encode(buf[:0]))
@@ -277,12 +246,13 @@ func NewMerlinMuSig2(rand io.Reader, priv *sr25519.PrivateKey, msg *merlin.Trans
 	out := &MuSig2{
 		Rs: map[string][NoncesLen]*ristretto255.Element{pkHex: R},
 
-		ctx:     msg,
-		cosigs:  make(map[string]*ristretto255.Scalar),
-		privKey: priv,
-		pkHex:   pkHex,
-		r1:      r,
-		state:   StateNew,
+		ctx:            msg,
+		cosigs:         make(map[string]*ristretto255.Scalar),
+		orderedPubKeys: []*sr25519.PublicKey{&priv.PublicKey},
+		privKey:        priv,
+		pkHex:          pkHex,
+		r1:             r,
+		state:          StateNew,
 	}
 
 	return out, nil

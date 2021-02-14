@@ -8,9 +8,7 @@ import (
 	"github.com/sammyne/musig2/sr25519"
 )
 
-func ExampleMerlinVerify() {
-	//msg := merlin.NewTranscript([]byte("musig2"))
-	//msg.AppendMessage([]byte("hello"), []byte("world"))
+func ExampleVerify() {
 	msg := []byte("hello-world")
 
 	mRand := mathrand.New(mathrand.NewSource(123))

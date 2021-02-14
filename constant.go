@@ -18,6 +18,9 @@ const (
 )
 
 const (
-	CosigLen  = 64
+	CosigLen = 64
+	// NoncesLen specify the total nonces for each party to use.
 	NoncesLen = 2
 )
+
+const noncesBytesLen = NoncesLen * 32
