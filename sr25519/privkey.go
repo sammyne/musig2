@@ -7,17 +7,23 @@ import (
 	"github.com/gtank/ristretto255"
 )
 
+// PrivateKey represents an sr25519 private key.
 type PrivateKey struct {
+	// PublicKey is the public key paired with this private key.
 	PublicKey
 
-	S     *ristretto255.Scalar
-	Nonce [32]byte // Seed for deriving the nonces used in signing.
+	// S is the secret scalar.
+	S *ristretto255.Scalar
+	// Nonce is the seed for deriving the nonces used in signing.
+	Nonce [32]byte
 }
 
+// Public returns the public key corresponding to priv.
 func (priv *PrivateKey) Public() PublicKey {
 	return priv.PublicKey
 }
 
+// GenerateKey generates a public and private key pair.
 func GenerateKey(rand io.Reader) (*PrivateKey, error) {
 	var r [64 + 32]byte
 	if _, err := io.ReadFull(rand, r[:]); err != nil {

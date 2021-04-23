@@ -10,6 +10,7 @@ import (
 	"github.com/sammyne/musig2/bytes"
 )
 
+// SigLen is bytes length of an sr25519 signature.
 const SigLen = 64
 
 var (
@@ -21,11 +22,13 @@ var (
 	signCLabel          = []byte("sign:c")
 )
 
+// Sig represents an sr25519 signature.
 type Sig struct {
 	R *ristretto255.Element
 	S *ristretto255.Scalar
 }
 
+// MarshalBinary implements encoding.BinaryMarshaler.
 func (s *Sig) MarshalBinary() (data []byte, err error) {
 	var out [64]byte
 	s.R.Encode(out[:32])
@@ -34,6 +37,7 @@ func (s *Sig) MarshalBinary() (data []byte, err error) {
 	return out[:], nil
 }
 
+// UnmarshalBinary implements encoding.BinaryUnmarshaler.
 func (s *Sig) UnmarshalBinary(data []byte) error {
 	if len(data) != SigLen {
 		return fmt.Errorf("invalid sig length: expect %d, got %d", SigLen, len(data))
@@ -52,6 +56,7 @@ func (s *Sig) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+// MerlinSign signs the merlin transcript using the private key, priv.
 func MerlinSign(rand io.Reader, priv *PrivateKey, transcript *merlin.Transcript) (*Sig, error) {
 	transcript.AppendMessage(protoLabel, proto)
 
@@ -85,6 +90,7 @@ func MerlinSign(rand io.Reader, priv *PrivateKey, transcript *merlin.Transcript)
 	return out, nil
 }
 
+// MerlinVerify verifies the signature sig of transcript using the public key, pub.
 func MerlinVerify(pub *PublicKey, transcript *merlin.Transcript, sig *Sig) bool {
 	transcript.AppendMessage(protoLabel, proto)
 
@@ -104,10 +110,12 @@ func MerlinVerify(pub *PublicKey, transcript *merlin.Transcript, sig *Sig) bool 
 	return R.Equal(sig.R) == 1
 }
 
+// Sign signs the msg using the private key, priv.
 func Sign(rand io.Reader, priv *PrivateKey, msg []byte) (*Sig, error) {
 	return MerlinSign(rand, priv, newSigningTranscript(msg))
 }
 
+// Verify verifies the signature sig of msg using the public key, pub.
 func Verify(pub *PublicKey, msg []byte, sig *Sig) bool {
 	return MerlinVerify(pub, newSigningTranscript(msg), sig)
 }
